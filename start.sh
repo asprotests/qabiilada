@@ -17,7 +17,7 @@ echo "✅ Requirements installed."
 
 echo "⚙️ Setting up PM2 to run the scraper..."
 # Name the process "abtirsi-scraper"
-pm2 start venv/bin/python3 --name abtirsi-scraper -- abtirsi_scraper.py
+pm2 start venv/bin/python3 --name abtirsi-scraper -- abtirsi_scraper_async.py
 
 echo "💾 Saving PM2 config..."
 pm2 save

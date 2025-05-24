@@ -105,9 +105,6 @@ def parse_person_page(html, person_id):
     }
 
 async def fetch_and_store(session, person_id, max_retries=6):
-    if person_id in written_ids:
-        return
-
     url = f"https://www.abtirsi.com/view.php?person={person_id}"
     attempt = 0
 
@@ -154,11 +151,12 @@ async def fetch_and_store(session, person_id, max_retries=6):
 async def main():
     print("🚀 Scraper starting...")
     homepage_ids = get_homepage_ids()
-    full_id_set = sorted(set(range(1, TOTAL_IDS + 1)).union(homepage_ids))
+    all_possible_ids = set(range(1, TOTAL_IDS + 1)).union(homepage_ids)
+    remaining_ids = sorted(all_possible_ids - written_ids)
 
     async with aiohttp.ClientSession() as session:
-        for i in tqdm(range(0, len(full_id_set), CONCURRENT_REQUESTS)):
-            batch = full_id_set[i:i+CONCURRENT_REQUESTS]
+        for i in tqdm(range(0, len(remaining_ids), CONCURRENT_REQUESTS)):
+            batch = remaining_ids[i:i+CONCURRENT_REQUESTS]
             tasks = [fetch_and_store(session, pid) for pid in batch]
             await asyncio.gather(*tasks)
             await asyncio.sleep(1)
