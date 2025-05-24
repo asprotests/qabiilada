@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QABIILADA SOOMAALIDA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      /* Light Theme Colors (Default) */
+      --bg-color: #f8fafc;
+      --header-bg: #ffffff;
+      --text-color-primary: #1e293b;
+      --text-color-secondary: #4b5563;
+      --border-color: #e2e8f0;
+      --input-bg: #ffffff;
+      --input-border: #cbd5e1;
+      --node-fill: #ffffff;
+      --node-stroke: #3b82f6;
+      --link-stroke: #d1d5db;
+      --shadow-color: rgba(0,0,0,0.07);
+      --shadow-color-header-footer: rgba(0,0,0,0.05);
+      --social-icon-hover: #1c64f2;
+    }
+
+    body.dark-theme {
+      /* Dark Theme Colors */
+      --bg-color: #111827;
+      --header-bg: #1f2937;
+      --text-color-primary: #e2e8f0;
+      --text-color-secondary: #9ca3af;
+      --border-color: #374151;
+      --input-bg: #374151;
+      --input-border: #4b5563;
+      --node-fill: #1f2937;
+      --node-stroke: #60a5fa;
+      --link-stroke: #4b5563;
+      --shadow-color: rgba(0,0,0,0.2);
+      --shadow-color-header-footer: rgba(0,0,0,0.15);
+      --social-icon-hover: #2563eb;
+    }
+
+    body {
+      font-family: "Inter", "Segoe UI", sans-serif;
+      margin: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color-primary);
+      overflow: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    header {
+      background-color: var(--header-bg);
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      min-height: 60px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 1.2rem;
+      box-shadow: 0 2px 8px var(--shadow-color-header-footer);
+      z-index: 100;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .header-left {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 0.5rem;
+    }
+
+    .header-flag {
+      height: 24px;
+      width: 36px;
+      vertical-align: middle;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .header-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-color-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    #search {
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--input-border);
+      font-size: 0.9rem;
+      outline: none;
+      min-width: 180px;
+      background-color: var(--input-bg);
+      color: var(--text-color-primary);
+      transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+    }
+
+    #search::placeholder {
+      color: var(--text-color-secondary);
+    }
+
+    #theme-toggle {
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 0.375rem;
+      font-size: 1rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      color: var(--text-color-primary);
+      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+      margin-right: 30px;
+    }
+
+    #theme-toggle:hover {
+      opacity: 0.9;
+    }
+
+    svg {
+      margin-top: 60px;
+      height: calc(100vh - 60px - 50px);
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .node rect {
+      fill: var(--node-fill);
+      stroke: var(--node-stroke);
+      stroke-width: 1.5px;
+      rx: 10;
+      filter: drop-shadow(0 2px 5px var(--shadow-color));
+      transition: fill 0.3s ease, stroke 0.3s ease, filter 0.3s ease;
+    }
+
+    .link {
+      fill: none;
+      stroke: var(--link-stroke);
+      stroke-width: 2px;
+      transition: stroke 0.3s ease;
+    }
+
+    .node foreignObject div {
+      padding: 0.35rem 0.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--text-color-primary);
+      font-weight: 500;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.2;
+      transition: color 0.3s ease;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      min-height: 50px;
+      padding: 0.6rem 1.2rem;
+      background-color: var(--header-bg);
+      font-size: 0.8rem;
+      color: var(--text-color-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 -2px 8px var(--shadow-color-header-footer);
+      z-index: 50;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+    }
+
+    .footer-left-text {
+        flex: 1;
+        min-width: 0;
+        line-height: 1.4;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-left: auto;
+      white-space: nowrap;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+    }
+
+    .footer-right:hover {
+      background-color: rgba(0,0,0,0.05);
+    }
+    body.dark-theme .footer-right:hover {
+      background-color: rgba(255,255,255,0.08);
+    }
+
+
+    .footer-right img {
+      height: 1rem;
+      width: 1rem;
+      vertical-align: middle;
+      filter: grayscale(100%);
+      opacity: 0.7;
+      transition: filter 0.2s ease, opacity 0.2s ease;
+    }
+
+    .footer-right:hover img {
+        filter: grayscale(0%);
+        opacity: 1;
+    }
+
+    .footer-right a {
+      color: var(--text-color-secondary);
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-right a:hover {
+      color: var(--social-icon-hover);
+      text-decoration: underline;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.8rem 1rem;
+        min-height: 90px;
+      }
+
+      .header-controls {
+        width: 100%;
+        margin-top: 0.5rem;
+        justify-content: space-between;
+        padding: 0 10px;
+        box-sizing: border-box;
+      }
+
+      #search {
+        flex-grow: 1;
+        min-width: unset;
+      }
+
+      #theme-toggle {
+        margin-left: 0.5rem;
+        margin-right: 30px; /* Keep the 30px margin on mobile */
+      }
+
+      svg {
+        margin-top: 90px;
+        height: calc(100vh - 90px - 70px);
+      }
+
+      footer {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 0.6rem 1rem;
+        min-height: 70px;
+        text-align: center;
+      }
+
+      .footer-left-text {
+        width: 100%;
+        margin-bottom: 0.4rem;
+        padding-right: 0;
+        text-align: center;
+      }
+
+      .footer-right {
+        width: 100%;
+        justify-content: center;
+        margin-left: 0;
+        padding-left: 0;
+        margin-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Flag_of_Somalia.svg/320px-Flag_of_Somalia.svg.png" alt="Somali Flag" class="header-flag" />
+      <div class="header-title">Qabiilada Soomaaliyeed</div>
+    </div>
+    <div class="header-controls">
+      <input id="search" type="text" placeholder="🔍 Search clan name..." aria-label="Search clan name" />
+      <button id="theme-toggle" title="Toggle theme" aria-label="Toggle dark and light theme">🌓</button>
+    </div>
+  </header>
+  <svg></svg>
+  <footer>
+    <div class="footer-left-text">
+      **Navigation Tips:** ⬆️ Scroll up to zoom out &nbsp;&nbsp; ⬇️ Scroll down to zoom in &nbsp;&nbsp; 🖱️ Click + drag to move the tree
+    </div>
+    <div class="footer-right">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram icon" />
+      <a href="https://instagram.com/binaspro" target="_blank" rel="noopener noreferrer">@binaspro</a>
+    </div>
+  </footer>
+
+  <script>
+    const svg = d3.select("svg"),
+      g = svg.append("g");
+
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 4])
+      .on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      });
+
+    svg.call(zoom);
+
+    let allNodes = [];
+    let initialZoomSet = false;
+
+    d3.json("/api/tree?id=0")
+      .then(data => {
+        if (!data) {
+          document.body.innerHTML += "<p style='color:red; text-align:center; padding-top: 100px;'>❌ Xog lama helin (No data found)</p>";
+          return;
+        }
+
+        const root = d3.hierarchy(data);
+        allNodes = root.descendants();
+
+        const treeLayout = d3.tree()
+          .nodeSize([100, 250]);
+
+        treeLayout(root);
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        allNodes.forEach(d => {
+          minX = Math.min(minX, d.x);
+          maxX = Math.max(maxX, d.x);
+          minY = Math.min(minY, d.y);
+          maxY = Math.max(maxY, d.y);
+        });
+
+        const treeWidth = maxY - minY;
+        const treeHeight = maxX - minX;
+
+        const svgWidth = svg.node().getBoundingClientRect().width;
+        const svgHeight = svg.node().getBoundingClientRect().height;
+
+        const scaleX = svgWidth / treeWidth * 0.8;
+        const scaleY = svgHeight / treeHeight * 0.8;
+        const initialScale = Math.min(scaleX, scaleY, 1);
+
+        const translateX = svgWidth / 2 - (minY + maxY) / 2 * initialScale;
+        const translateY = svgHeight / 2 - (minX + maxX) / 2 * initialScale;
+
+        const initialTransform = d3.zoomIdentity
+          .translate(translateX, translateY)
+          .scale(initialScale);
+
+        svg.call(zoom.transform, initialTransform);
+        initialZoomSet = true;
+
+
+        g.selectAll(".link")
+          .data(root.links())
+          .join("path")
+          .attr("class", "link")
+          .attr("d", d3.linkHorizontal()
+            .x(d => d.y)
+            .y(d => d.x));
+
+        const node = g.selectAll(".node")
+          .data(allNodes)
+          .join("g")
+          .attr("class", "node")
+          .attr("transform", d => `translate(${d.y},${d.x})`);
+
+        node.append("rect")
+          .attr("width", 220)
+          .attr("height", 50)
+          .attr("x", -110)
+          .attr("y", -25)
+          .attr("rx", 12);
+
+        node.append("foreignObject")
+          .attr("x", -105)
+          .attr("y", -20)
+          .attr("width", 210)
+          .attr("height", 45)
+          .append("xhtml:div")
+          .text(d => (d.data.name || "Magac la'aan")
+            .replace(/([a-z])(")/gi, '$1 $2')
+            .replace(/"([a-z])/gi, '" $1')
+            .replace(/\s+/g, ' '));
+
+        document.getElementById("search").addEventListener("input", function () {
+          const keyword = this.value.toLowerCase();
+          g.selectAll(".node").style("opacity", d =>
+            d.data.name && d.data.name.toLowerCase().includes(keyword) ? 1 : 0.2
+          );
+        });
+      })
+      .catch(err => {
+        document.body.innerHTML += `<p style='color:red; text-align:center; padding-top: 100px;'>❌ Khalad xogta: ${err.message}</p>`;
+      });
+
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+      document.body.classList.toggle("dark-theme");
+      const isDark = document.body.classList.contains("dark-theme");
+      document.getElementById("theme-toggle").setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+      document.getElementById("theme-toggle").textContent = isDark ? "☀️" : "🌓";
+    });
+
+    // Removed the following lines to enforce light mode by default
+    // if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    //   document.body.classList.add('dark-theme');
+    //   document.getElementById("theme-toggle").textContent = "☀️";
+    // }
+  </script>
+</body>
+</html>
