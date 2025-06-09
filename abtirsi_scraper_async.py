@@ -14,7 +14,6 @@ FAILED_FILE = "abtirsi_failed.json"
 
 semaphore = asyncio.Semaphore(CONCURRENT_REQUESTS)
 written_ids = set()
-failed_ids = set()
 results = []
 
 ROOT_CLANS = [
@@ -54,6 +53,7 @@ def get_homepage_ids():
     print(f"✅ Found {len(ids)} extra root IDs from homepage")
     return ids
 
+# Load previously saved data
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         for line in f:
@@ -122,8 +122,7 @@ async def fetch_and_store(session, person_id, max_retries=6):
                         continue
 
                     if resp.status == 404:
-                        failed_ids.add(person_id)
-                        return
+                        return None, False
 
                     if resp.status != 200:
                         attempt += 1
@@ -135,9 +134,7 @@ async def fetch_and_store(session, person_id, max_retries=6):
                     data = parse_person_page(html, person_id)
                     with open(DATA_FILE, "a", encoding="utf-8") as f:
                         f.write(json.dumps(data, ensure_ascii=False) + "\n")
-                    results.append(data)
-                    written_ids.add(person_id)
-                    return
+                    return person_id, True
 
         except Exception as e:
             attempt += 1
@@ -146,19 +143,40 @@ async def fetch_and_store(session, person_id, max_retries=6):
             await asyncio.sleep(wait)
 
     print(f"❌ Giving up on {person_id} after {max_retries} retries.")
-    failed_ids.add(person_id)
+    return person_id, False
 
 async def main():
     print("🚀 Scraper starting...")
     homepage_ids = get_homepage_ids()
     all_possible_ids = set(range(1, TOTAL_IDS + 1)).union(homepage_ids)
-    remaining_ids = sorted(all_possible_ids - written_ids)
+
+    # Load previously failed IDs
+    previous_failed = set()
+    if os.path.exists(FAILED_FILE):
+        try:
+            with open(FAILED_FILE, "r", encoding="utf-8") as f:
+                previous_failed = set(json.load(f))
+                print(f"🔁 Retrying {len(previous_failed)} IDs from failed list...")
+        except Exception as e:
+            print(f"⚠️ Could not read failed file: {e}")
+
+    # Final list of IDs to process
+    remaining_ids = sorted(set(all_possible_ids).union(previous_failed) - written_ids)
+    new_written = set()
+    new_failed = set()
 
     async with aiohttp.ClientSession() as session:
         for i in tqdm(range(0, len(remaining_ids), CONCURRENT_REQUESTS)):
             batch = remaining_ids[i:i+CONCURRENT_REQUESTS]
             tasks = [fetch_and_store(session, pid) for pid in batch]
-            await asyncio.gather(*tasks)
+            results_batch = await asyncio.gather(*tasks)
+            for pid, success in results_batch:
+                if pid is not None:
+                    if success:
+                        written_ids.add(pid)
+                        new_written.add(pid)
+                    else:
+                        new_failed.add(pid)
             await asyncio.sleep(1)
 
     print("🌳 Inserting Soomaali root...")
@@ -175,10 +193,18 @@ async def main():
         with open(DATA_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(soomaali, ensure_ascii=False) + "\n")
 
+    # Clean up failed file
+    final_failed = (previous_failed | new_failed) - written_ids
     with open(FAILED_FILE, "w", encoding="utf-8") as f:
-        json.dump(sorted(list(failed_ids)), f, indent=2)
+        json.dump(sorted(list(final_failed)), f, indent=2)
 
     print(f"✅ Done. {len(written_ids)} entries saved.")
+    print(f"⚠️ Remaining failed: {len(final_failed)}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n🛑 Interrupted by user. Saving progress...")
+        with open(FAILED_FILE, "w", encoding="utf-8") as f:
+            json.dump(sorted(list(new_failed)), f, indent=2)
