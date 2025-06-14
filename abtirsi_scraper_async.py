@@ -15,6 +15,7 @@ FAILED_FILE = "abtirsi_failed.json"
 semaphore = asyncio.Semaphore(CONCURRENT_REQUESTS)
 written_ids = set()
 results = []
+new_failed = set()  # Global to support KeyboardInterrupt fallback
 
 ROOT_CLANS = [
     {"name": "Darod", "id": 1},
@@ -122,7 +123,7 @@ async def fetch_and_store(session, person_id, max_retries=6):
                         continue
 
                     if resp.status == 404:
-                        return None, False
+                        return person_id, False
 
                     if resp.status != 200:
                         attempt += 1
@@ -146,6 +147,7 @@ async def fetch_and_store(session, person_id, max_retries=6):
     return person_id, False
 
 async def main():
+    global new_failed
     print("🚀 Scraper starting...")
     homepage_ids = get_homepage_ids()
     all_possible_ids = set(range(1, TOTAL_IDS + 1)).union(homepage_ids)
@@ -164,9 +166,8 @@ async def main():
             print(f"⚠️ Failed file exists but is empty. No previous failed IDs to retry.")
 
     # Final list of IDs to process
-    remaining_ids = sorted(set(all_possible_ids).union(previous_failed) - written_ids)
+    remaining_ids = sorted((all_possible_ids | previous_failed) - written_ids)
     new_written = set()
-    new_failed = set()
 
     async with aiohttp.ClientSession() as session:
         for i in tqdm(range(0, len(remaining_ids), CONCURRENT_REQUESTS)):
@@ -196,7 +197,7 @@ async def main():
         with open(DATA_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(soomaali, ensure_ascii=False) + "\n")
 
-    # Clean up failed file
+    # ✅ Only save IDs that truly failed again
     final_failed = (previous_failed | new_failed) - written_ids
     with open(FAILED_FILE, "w", encoding="utf-8") as f:
         json.dump(sorted(list(final_failed)), f, indent=2)
@@ -209,5 +210,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n🛑 Interrupted by user. Saving progress...")
+        final_failed = new_failed - written_ids
         with open(FAILED_FILE, "w", encoding="utf-8") as f:
-            json.dump(sorted(list(new_failed)), f, indent=2)
+            json.dump(sorted(list(final_failed)), f, indent=2)
