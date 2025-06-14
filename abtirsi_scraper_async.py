@@ -150,15 +150,18 @@ async def main():
     homepage_ids = get_homepage_ids()
     all_possible_ids = set(range(1, TOTAL_IDS + 1)).union(homepage_ids)
 
-    # Load previously failed IDs
+    # Load previously failed IDs (safely)
     previous_failed = set()
     if os.path.exists(FAILED_FILE):
-        try:
-            with open(FAILED_FILE, "r", encoding="utf-8") as f:
-                previous_failed = set(json.load(f))
-                print(f"🔁 Retrying {len(previous_failed)} IDs from failed list...")
-        except Exception as e:
-            print(f"⚠️ Could not read failed file: {e}")
+        if os.path.getsize(FAILED_FILE) > 0:
+            try:
+                with open(FAILED_FILE, "r", encoding="utf-8") as f:
+                    previous_failed = set(json.load(f))
+                    print(f"🔁 Retrying {len(previous_failed)} IDs from failed list...")
+            except Exception as e:
+                print(f"⚠️ Could not read failed file: {e}")
+        else:
+            print(f"⚠️ Failed file exists but is empty. No previous failed IDs to retry.")
 
     # Final list of IDs to process
     remaining_ids = sorted(set(all_possible_ids).union(previous_failed) - written_ids)
